@@ -3,106 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SISTEMA ERP ACME - PANEL DE CONTROL</title>
+    <title>ERP ACME - Portal Seguro</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 0; }
-        .navbar { background-color: #1e293b; color: white; padding: 15px; text-align: center; font-size: 20px; font-weight: bold; }
-        .container { max-width: 450px; margin: 50px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #1e293b; margin-top: 0; }
-        label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; }
-        input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 10px; }
-        .btn-primary { background-color: #2563eb; color: white; }
-        .btn-primary:hover { background-color: #1d4ed8; }
-        .btn-secondary { background-color: #0f172a; color: white; }
-        .btn-secondary:hover { background-color: #1e293b; }
-        #resultado { margin-top: 20px; padding: 15px; border-radius: 4px; font-size: 14px; white-space: pre-wrap; word-wrap: break-word; display: none; }
-        .success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
-        .error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
-        .info { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+        :root { --primary: #0f172a; --accent: #2563eb; --bg: #f8fafc; --text: #334155; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .login-card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 400px; border-top: 5px solid var(--accent); }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h2 { margin: 0; color: var(--primary); font-size: 24px; }
+        .header p { margin: 5px 0 0; font-size: 14px; color: #64748b; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; }
+        input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; font-size: 15px; transition: border-color 0.3s; }
+        input:focus { outline: none; border-color: var(--accent); }
+        .mfa-box { background: #eff6ff; padding: 15px; border-radius: 6px; border: 1px dashed #93c5fd; margin-bottom: 25px; }
+        button { width: 100%; padding: 14px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; transition: opacity 0.3s; margin-bottom: 12px; }
+        .btn-auth { background-color: var(--accent); color: white; }
+        .btn-data { background-color: var(--primary); color: white; }
+        button:hover { opacity: 0.9; }
+        #console { margin-top: 20px; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 12px; display: none; white-space: pre-wrap; word-break: break-all; }
+        .success { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+        .error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
     </style>
 </head>
 <body>
 
-    <div class="navbar">🏢 ACME ERP v1.0 - Módulo de Seguridad</div>
+    <div class="login-card">
+        <div class="header">
+            <h2>🏢 ERP ACME</h2>
+            <p>Control de Acceso de Alta Seguridad</p>
+        </div>
 
-    <div class="container">
-        <h2>🔒 Autenticación Corporativa</h2>
+        <div class="form-group">
+            <label>Usuario</label>
+            <input type="text" id="usuario" value="admin">
+        </div>
         
-        <label for="usuario">Nombre de Usuario</label>
-        <input type="text" id="usuario" placeholder="admin" value="admin">
-        
-        <label for="password">Contraseña del Sistema</label>
-        <input type="password" id="password" placeholder="••••••••" value="secreto123">
-        
-        <button class="btn-primary" onclick="iniciarSesion()">1. Iniciar Sesión (Generar JWT)</button>
-        <button class="btn-secondary" onclick="obtenerDatosPrivados()">2. Consultar Datos Privados del ERP</button>
+        <div class="form-group">
+            <label>Contraseña</label>
+            <input type="password" id="password" value="acme2026">
+        </div>
 
-        <div id="resultado"></div>
+        <div class="mfa-box">
+            <label style="color: var(--accent);">Código MFA </label>
+            <input type="text" id="mfa" placeholder="Ingresa" value="250424">
+        </div>
+
+        <button class="btn-auth" onclick="ejecutarLogin()">1. Validar MFA y Generar JWT</button>
+        <button class="btn-data" onclick="consultarAPI()">2. Consultar Base de Datos RDS</button>
+
+        <div id="console"></div>
     </div>
 
     <script>
-        // Detecta dinámicamente la IP y puerto pública del EC2 de forma nativa
-        const API_URL = window.location.origin; 
+        const API_URL = window.location.origin;
+        const panel = document.getElementById('console');
 
-        function mostrarMensaje(texto, tipo) {
-            const resDiv = document.getElementById('resultado');
-            resDiv.style.display = 'block';
-            resDiv.innerText = texto;
-            resDiv.className = '';
-            resDiv.classList.add(tipo);
+        function imprimir(msg, clase) {
+            panel.style.display = 'block';
+            panel.className = clase;
+            panel.innerText = msg;
         }
 
-        async function iniciarSesion() {
+        async function ejecutarLogin() {
             const usuario = document.getElementById('usuario').value;
             const password = document.getElementById('password').value;
+            const mfa = document.getElementById('mfa').value;
 
             try {
-                const respuesta = await fetch(`${API_URL}/login`, {
+                const res = await fetch(`${API_URL}/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ usuario, password })
+                    body: JSON.stringify({ usuario, password, mfa })
                 });
+                const data = await res.json();
 
-                const data = await respuesta.json();
-
-                if (respuesta.ok) {
-                    localStorage.setItem('tokenJWT', data.token);
-                    mostrarMensaje(`✅ Login Exitoso.\n\n🔑 Token JWT Generado:\n${data.token}`, 'success');
+                if (res.ok) {
+                    localStorage.setItem('token', data.token);
+                    imprimir(`✅ ${data.mensaje}\n\nTOKEN JWT GENERADO:\n${data.token}`, 'success');
                 } else {
-                    mostrarMensaje(`❌ Error: ${data.mensaje}`, 'error');
+                    imprimir(`❌ Acceso Denegado:\n${data.mensaje}`, 'error');
                 }
             } catch (error) {
-                mostrarMensaje('❌ Error de red al conectar con la API de Node.js', 'error');
+                imprimir('❌ Error crítico de red o servidor offline.', 'error');
             }
         }
 
-        async function obtenerDatosPrivados() {
-            const token = localStorage.getItem('tokenJWT');
-
+        async function consultarAPI() {
+            const token = localStorage.getItem('token');
             if (!token) {
-                mostrarMensaje('⚠️ Acceso Bloqueado: No posees un Token JWT activo. Autentícate primero.', 'error');
+                imprimir('⚠️ Bloqueo de Middleware:\nNo existe un Token JWT en memoria. Inicie sesión primero.', 'error');
                 return;
             }
 
             try {
-                const respuesta = await fetch(`${API_URL}/api/acme/datos`, {
+                const res = await fetch(`${API_URL}/api/acme/datos`, {
                     method: 'GET',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                const data = await res.json();
 
-                const data = await respuesta.json();
-
-                if (respuesta.ok) {
-                    mostrarMensaje(`🔓 Acceso Concedido por Middleware JWT:\n\n${JSON.stringify(data, null, 2)}`, 'info');
+                if (res.ok) {
+                    imprimir(`🔓 Acceso Concedido (JWT Válido):\n\n${JSON.stringify(data, null, 2)}`, 'success');
                 } else {
-                    mostrarMensaje(`❌ Acceso Denegado (401/403):\n${data.mensaje}`, 'error');
+                    imprimir(`❌ Error de Autorización:\n${data.mensaje}`, 'error');
                 }
             } catch (error) {
-                mostrarMensaje('❌ Error al interceptar y validar los datos.', 'error');
+                imprimir('❌ Fallo al conectar con la ruta protegida.', 'error');
             }
         }
     </script>
-
 </body>
 </html>

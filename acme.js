@@ -8,8 +8,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Sirve la interfaz gráfica automáticamente
+app.use(express.static('public'));
 
-// 1. CONEXIÓN A BASE DE DATOS AWS RDS
+// 1. Conexión a AWS RDS
 const pool = new Pool({
     user: process.env.DB_USER,
     host: process.env.DB_HOST,
@@ -20,55 +22,41 @@ const pool = new Pool({
 });
 
 pool.connect()
-    .then(() => console.log('✅ Conexión exitosa a la base de datos AWS RDS'))
+    .then(() => console.log('✅ Conexión exitosa a AWS RDS'))
     .catch(err => console.error('❌ Error conectando a RDS:', err.stack));
 
-
-// ==========================================
-// 2. RUTAS PÚBLICAS Y GENERACIÓN DE JWT
-// ==========================================
+// 2. Ruta Pública: Login con MFA Simulado
 app.post('/login', (req, res) => {
-    const { usuario, password } = req.body;
+    const { usuario, password, mfa } = req.body;
 
-    // Validación simulada de credenciales para el requerimiento de seguridad
-    if (usuario === 'admin' && password === 'acme2026') {
-        
-        // Se genera el token firmado con la clave secreta
-        const token = jwt.sign(
-            { usuario: usuario, rol: 'administrador' }, 
-            process.env.JWT_SECRET, 
-            { expiresIn: '2h' } // El token expirará en 2 horas
-        );
-        
-        res.json({ 
-            mensaje: 'Autenticación exitosa', 
-            token: token 
-        });
-    } else {
-        res.status(401).json({ mensaje: 'Credenciales inválidas' });
+    // Validación de Primer Factor
+    if (usuario !== 'admin' || password !== 'acme2026') {
+        return res.status(401).json({ mensaje: 'Credenciales de acceso inválidas' });
     }
+
+    // Validación de Segundo Factor (MFA)
+    if (mfa !== '250424') {
+        return res.status(401).json({ mensaje: 'Código MFA incorrecto o expirado' });
+    }
+
+    // Generación de JWT si ambos factores son correctos
+    const token = jwt.sign(
+        { usuario: usuario, rol: 'administrador' }, 
+        process.env.JWT_SECRET, 
+        { expiresIn: '2h' }
+    );
+    
+    res.json({ mensaje: 'Autenticación de Doble Factor exitosa', token: token });
 });
 
-
-// ==========================================
-// 3. MIDDLEWARE DE SEGURIDAD (El Guardia)
-// ==========================================
+// 3. Middleware de Seguridad JWT
 const verificarToken = (req, res, next) => {
-    // Busca el token en la cabecera 'Authorization'
     const authHeader = req.header('Authorization');
-    
-    if (!authHeader) {
-        return res.status(403).json({ mensaje: 'Acceso denegado. Se requiere un token JWT.' });
-    }
+    if (!authHeader) return res.status(403).json({ mensaje: 'Bloqueado: Se requiere Token JWT.' });
 
     try {
-        // Extrae el token limpiando la palabra "Bearer "
         const tokenLimpio = authHeader.split(" ")[1];
-        
-        // Verifica la firma del token
         const verificado = jwt.verify(tokenLimpio, process.env.JWT_SECRET);
-        
-        // Si es válido, guarda los datos del usuario en la petición y permite continuar
         req.usuario = verificado;
         next(); 
     } catch (error) {
@@ -76,23 +64,19 @@ const verificarToken = (req, res, next) => {
     }
 };
 
-
-// ==========================================
-// 4. RUTAS PRIVADAS (Protegidas por JWT)
-// ==========================================
+// 4. Ruta Privada ERP
 app.get('/api/acme/datos', verificarToken, (req, res) => {
     res.json({
-        mensaje: `¡Bienvenido al sistema ERP de ACME, ${req.usuario.usuario}!`,
-        datos: "Esta información es confidencial y solo es visible si tienes un token válido.",
-        estado_servidor: "Operativo y Seguro"
+        mensaje: `Bienvenido al núcleo del ERP, ${req.usuario.usuario}`,
+        datos_confidenciales: [
+            { id: 'SRV-01', recurso: 'AWS EC2', estado: 'Activo' },
+            { id: 'DB-01', recurso: 'AWS RDS', estado: 'Seguro' }
+        ],
+        seguridad: "Auditoría MFA y JWT completada"
     });
 });
 
-
-// ==========================================
-// 5. INICIALIZACIÓN DEL SERVIDOR
-// ==========================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Servidor ACME ERP corriendo de forma segura en el puerto ${PORT}`);
+    console.log(`🚀 API ACME corriendo en el puerto ${PORT}`);
 });
